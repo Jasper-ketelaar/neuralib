@@ -16,12 +16,12 @@ public class NeuraLibTest {
 
     public static void main(String[] args) {
 
-        PerceptronLayer inputLayer = new InputLayer(2);
+        PerceptronLayer inputLayer = new InputLayer(40);
 
-        PerceptronLayer hidden = new LayerBuilder(2)
+        PerceptronLayer hidden = new LayerBuilder(8)
                 .withActivationFunction(new Sigmoid())
                 .withLearingRate(.1)
-                .withPerceptrons(2, 2)
+                .withPerceptrons(40, 8)
                 .build();
 
         PerceptronLayer output = new SinglePerceptronLayer(new LearningPerceptron(hidden.getSize(), .1, new Threshold(.5)));

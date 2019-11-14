@@ -4,12 +4,16 @@ import nl.yasper.neuralib.network.NeuralNetwork;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.*;
 import java.util.ArrayList;
 
-public class NetworkPanel extends JPanel implements Runnable {
+public class NetworkPanel extends JPanel implements Runnable, MouseWheelListener {
 
     private final NeuralNetwork network;
     private final ArrayList<LayerDisplayable> layers;
+
+    private double zoom = 1.0;
+    private Point origin = new Point(0, 0);
 
     private Dimension dimensions = new Dimension(600, 300);
     private int layerBaseX;
@@ -22,6 +26,12 @@ public class NetworkPanel extends JPanel implements Runnable {
         network.getHiddenLayers().forEach(hl -> layers.add(new LayerDisplayable(hl, true)));
         this.layers.add(new LayerDisplayable(network.getOutputLayer(), false));
 
+        addMouseWheelListener(this);
+
+        MouseDragAdapter mda = new MouseDragAdapter();
+        addMouseMotionListener(mda);
+        addMouseListener(mda);
+
         startRenderLoop();
     }
 
@@ -33,6 +43,8 @@ public class NetworkPanel extends JPanel implements Runnable {
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
+        g2.scale(zoom, zoom);
+        g2.translate(origin.x, origin.y);
 
         layerBaseX += 20;
         g2.translate(layerBaseX, 0);
@@ -80,9 +92,11 @@ public class NetworkPanel extends JPanel implements Runnable {
     public void run() {
         while (isVisible()) {
             if (!getPreferredSize().equals(dimensions)) {
-                setPreferredSize(dimensions);
+                Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+                dimensions = new Dimension(Math.min(dimensions.width, screenSize.width), Math.min(dimensions.height, screenSize.height - 50));
                 Component parent = getParent().getParent().getParent();
                 if (parent instanceof JFrame) {
+                    setPreferredSize(dimensions);
                     parent.setSize(dimensions);
                 }
             }
@@ -91,6 +105,49 @@ public class NetworkPanel extends JPanel implements Runnable {
                 Thread.sleep(50);
             } catch (InterruptedException ignored) {
             }
+        }
+    }
+
+    @Override
+    public void mouseWheelMoved(MouseWheelEvent e) {
+        double direction = e.getWheelRotation();
+        zoom = Math.min(2.0, Math.max(0.1, zoom + direction * -.01));
+    }
+
+    private class MouseDragAdapter extends MouseMotionAdapter implements MouseListener {
+
+        Point clicked;
+
+        @Override
+        public void mouseDragged(MouseEvent e) {
+            int xDir = (int) (e.getX() - clicked.getX());
+            int yDir = (int) (e.getY() - clicked.getY());
+            clicked = e.getPoint();
+            origin.translate((int) (xDir / zoom), (int) (yDir / zoom));
+        }
+
+        @Override
+        public void mouseClicked(MouseEvent e) {
+        }
+
+        @Override
+        public void mousePressed(MouseEvent e) {
+            clicked = e.getPoint();
+        }
+
+        @Override
+        public void mouseReleased(MouseEvent e) {
+
+        }
+
+        @Override
+        public void mouseEntered(MouseEvent e) {
+
+        }
+
+        @Override
+        public void mouseExited(MouseEvent e) {
+
         }
     }
 }

@@ -1,12 +1,10 @@
 package nl.yasper.neuralib.network.layer;
 
+import nl.yasper.neuralib.network.perceptron.LearningPerceptron;
 import nl.yasper.neuralib.network.perceptron.Perceptron;
 
 import java.security.InvalidParameterException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 public class PerceptronLayer implements Iterable<Perceptron> {
 

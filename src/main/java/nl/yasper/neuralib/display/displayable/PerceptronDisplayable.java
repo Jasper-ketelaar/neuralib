@@ -1,4 +1,4 @@
-package nl.yasper.neuralib.display;
+package nl.yasper.neuralib.display.displayable;
 
 import nl.yasper.neuralib.network.perceptron.InputPerceptron;
 import nl.yasper.neuralib.network.perceptron.Perceptron;
@@ -7,7 +7,7 @@ import java.awt.*;
 
 public class PerceptronDisplayable implements Displayable {
 
-    protected static final int PERCEPTRON_SIZE = 35;
+    public static final int PERCEPTRON_SIZE = 35;
 
     private final Perceptron perceptron;
     private final int index;
@@ -75,6 +75,10 @@ public class PerceptronDisplayable implements Displayable {
 
     public int getIndex() {
         return index;
+    }
+
+    public Perceptron getPerceptron() {
+        return perceptron;
     }
 
 }

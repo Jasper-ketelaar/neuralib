@@ -1,7 +1,7 @@
 package nl.yasper.neuralib.network.perceptron;
 
-import nl.yasper.neuralib.network.activation.ActivationFunction;
 import nl.yasper.neuralib.math.ArrayMath;
+import nl.yasper.neuralib.network.activation.ActivationFunction;
 
 import java.util.Random;
 
@@ -9,6 +9,7 @@ public class LearningPerceptron extends Perceptron {
 
     private final double[] weights;
     private final double learning;
+    private double bias;
 
     public LearningPerceptron(int inputLength, double learning, ActivationFunction activation) {
         super(inputLength, activation);
@@ -20,8 +21,14 @@ public class LearningPerceptron extends Perceptron {
     private void initializeWeights() {
         Random random = new Random();
         for (int i = 0; i < weights.length; i++) {
-            this.weights[i] = random.nextDouble();
+            this.weights[i] = random.nextGaussian();
         }
+
+        this.bias = random.nextGaussian();
+    }
+
+    public void updateBias(double delta) {
+        bias += learning * delta;
     }
 
     public void train(double[] inputs, double output) {
@@ -35,12 +42,12 @@ public class LearningPerceptron extends Perceptron {
     }
 
     public void updateWeight(int index, double delta) {
-        weights[index] += delta;
+        weights[index] += learning * delta;
     }
 
     @Override
     public double getWeightedProduct(double[] inputs) {
-        return ArrayMath.dotProduct(inputs, weights);
+        return ArrayMath.dotProduct(inputs, weights) + bias;
     }
 
     @Override

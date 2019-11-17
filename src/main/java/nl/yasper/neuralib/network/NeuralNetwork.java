@@ -3,7 +3,6 @@ package nl.yasper.neuralib.network;
 import nl.yasper.neuralib.network.layer.InputLayer;
 import nl.yasper.neuralib.network.layer.PerceptronLayer;
 import nl.yasper.neuralib.network.perceptron.LearningPerceptron;
-import nl.yasper.neuralib.network.perceptron.Perceptron;
 
 import java.util.*;
 
@@ -32,49 +31,101 @@ public class NeuralNetwork {
         this(input, new PerceptronLayer[0], output);
     }
 
-    public void train(double[] inputs, double[] outputs) {
+    public void trainUntil(double[][] inputs, double[][] outputs, double error) {
+        double realError = 1;
+        while (realError > error) {
+            double currError = 0;
+            for (int i = 0; i < inputs.length; i++) {
+                double[] inputSes = inputs[i];
+                double[] outputSes = outputs[i];
+                currError = Math.max(currError, train(inputSes, outputSes));
+                System.out.printf("Error of %.2f on %s input, expected %s output \n", currError, Arrays.toString(inputSes), Arrays.toString(outputSes));
+            }
+            realError = currError;
+        }
+    }
+
+    public double train(double[] inputs, double[] outputs) {
         double[][] result = computeEpochMatrix(inputs);
         double[] predictions = result[hidden.size() + 1];
 
         Map<PerceptronLayer, double[]> errorMap = backPropogatedError(predictions, outputs);
         PerceptronLayer current = output;
         int layerIndex = hidden.size() + 1;
+        /*
+         * When training we want to update all weights going into every layer except the input layer,
+         * so we loop until we encounter the input layer
+         */
+
         while (!(current instanceof InputLayer)) {
+            //This current layer's error values as computed using the back propogated error
             double[] errors = errorMap.get(current);
+            /*
+             * For each perceptron in this layer (we can assume they are learning perceptrons as the input layer
+             * is where we stop
+             */
             for (int index = 0; index < current.getSize(); index++) {
                 LearningPerceptron lp = (LearningPerceptron) current.getPerceptron(index);
-                for (int i = 0; i < lp.getInputLength(); i++) {
-                    double delta = result[layerIndex][index] * lp.getLearningRate() * errors[index];
-                    lp.updateWeight(i, delta);
+
+                // Derivative of sigmoid(E x_iw_j) is actually just result of perceptron instead of sigmoid
+                double derivative = result[layerIndex][index] * (1 - result[layerIndex][index]);
+                for (int weightIndex = 0; weightIndex < lp.getInputLength(); weightIndex++) {
+                    double diff = errors[index] * derivative * result[layerIndex - 1][weightIndex];
+                    lp.updateWeight(weightIndex, diff);
                 }
+
+                lp.updateBias(errors[index] * derivative);
             }
 
             current = getPrevious(current);
             layerIndex--;
         }
+
+        // Return the Mean Squared Error as a result when training
+        double sError = 0;
+        for (double error : errorMap.get(output)) {
+            sError += Math.pow(error, 2);
+        }
+
+        return sError / outputs.length;
     }
 
     private Map<PerceptronLayer, double[]> backPropogatedError(double[] predictions, double[] expected) {
+        // Create a map that stores all the errors for each layer
         Map<PerceptronLayer, double[]> errorMap = new HashMap<>();
+
+        // First compute the output errors given the predictions
         double[] outputErrors = new double[predictions.length];
         for (int i = 0; i < predictions.length; i++) {
             outputErrors[i] = expected[i] - predictions[i];
         }
-
         errorMap.put(output, outputErrors);
 
+
         PerceptronLayer previousLayer = output;
+        // Backwardly iterate over the hidden layers to feed back the error values
         for (int i = hidden.size() - 1; i >= 0; i--) {
             PerceptronLayer currentLayer = hidden.get(i);
+
+            // Get the error values for the previous layer
             double[] prevLayerErrors = errorMap.get(previousLayer);
             double[] layerErrors = new double[currentLayer.getSize()];
+
+            // Loop over the perceptrons in the current layer
             for (int index = 0; index < currentLayer.getSize(); index++) {
+
+                // Loop over the previous layer's error values
                 for (int x = 0; x < prevLayerErrors.length; x++) {
+
+                    // Get the perceptron in the previous layer this current perceptron is connected to
                     LearningPerceptron currPrevPerceptron = (LearningPerceptron) previousLayer.getPerceptron(x);
+
+                    // Add the previous error for that perceptron multiplied by the weight between this and that perceptron
                     layerErrors[index] += prevLayerErrors[x] * currPrevPerceptron.getWeights()[index];
                 }
             }
 
+            // Put the errors in the map and move a layer backwards
             errorMap.put(currentLayer, layerErrors);
             previousLayer = currentLayer;
         }
@@ -90,24 +141,16 @@ public class NeuralNetwork {
             } else {
                 return hidden.get(hidden.size() - 1);
             }
-        } else if (from == input) {
-            return null;
         }
 
-        PerceptronLayer previous = hidden.get(0);
-        if (previous == from) {
-            return input;
-        }
-
-        for (PerceptronLayer hiddenLayer : hidden) {
-            if (hiddenLayer == from) {
-                return previous;
+        for (int i = hidden.size() - 1; i >= 0; i--) {
+            PerceptronLayer current = hidden.get(i);
+            if (current == from && i > 0) {
+                return hidden.get(i - 1);
             }
-
-            previous = hiddenLayer;
         }
 
-        return null;
+        return input;
     }
 
     public double[] predict(double[] inputs) {
@@ -120,7 +163,6 @@ public class NeuralNetwork {
         for (int i = 0; i < hidden.size(); i++) {
             result[i + 1] = hidden.get(i).predict(result[i]);
         }
-
 
         result[hidden.size() + 1] = output.predict(result[hidden.size()]);
         return result;

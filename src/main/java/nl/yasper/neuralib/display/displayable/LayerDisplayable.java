@@ -1,6 +1,7 @@
-package nl.yasper.neuralib.display;
+package nl.yasper.neuralib.display.displayable;
 
 import nl.yasper.neuralib.network.layer.PerceptronLayer;
+import nl.yasper.neuralib.network.perceptron.LearningPerceptron;
 
 import java.awt.*;
 import java.awt.geom.AffineTransform;
@@ -78,10 +79,13 @@ public class LayerDisplayable implements Displayable {
         int deltaX = secondPoint.x - firstPoint.x;
         int deltaY = secondPoint.y - firstPoint.y;
 
-        Point halfway = new Point(firstPoint.x + deltaX * 2 / 3, firstPoint.y + deltaY * 2 /3);
+        Point halfway = new Point(firstPoint.x + deltaX / 2, firstPoint.y + deltaY / 2);
         double theta = Math.atan2(deltaX, deltaY);
         g.rotate(-theta + Math.PI / 2, halfway.x, halfway.y);
-        g.drawString(String.format("w%d_%d", first.getIndex() + 1, second.getIndex() + 1), halfway.x, halfway.y - 5);
+
+
+        double weight = ((LearningPerceptron) second.getPerceptron()).getWeights()[first.getIndex()];
+        g.drawString(String.format("w%d_%d: %.4f", first.getIndex() + 1, second.getIndex() + 1, weight), halfway.x, halfway.y - 5);
         g.setTransform(orig);
     }
 }

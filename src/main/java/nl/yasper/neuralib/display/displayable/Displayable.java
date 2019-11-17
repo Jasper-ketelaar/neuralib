@@ -1,4 +1,4 @@
-package nl.yasper.neuralib.display;
+package nl.yasper.neuralib.display.displayable;
 
 import java.awt.*;
 

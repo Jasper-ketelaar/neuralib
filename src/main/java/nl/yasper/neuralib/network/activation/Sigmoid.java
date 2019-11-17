@@ -9,7 +9,8 @@ public class Sigmoid implements ActivationFunction {
 
     @Override
     public double derive(double output) {
-        return 0;
+        double res = activate(output);
+        return res * (1 - res);
     }
 
 }

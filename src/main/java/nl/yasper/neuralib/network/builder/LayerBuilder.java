@@ -21,8 +21,8 @@ public class LayerBuilder {
         return this;
     }
 
-    public LayerBuilder withLearingRate(double learingRate) {
-        this.learning = learingRate;
+    public LayerBuilder withLearningRate(double learningRate) {
+        this.learning = learningRate;
         return this;
     }
 

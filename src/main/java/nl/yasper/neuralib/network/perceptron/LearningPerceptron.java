@@ -30,8 +30,12 @@ public class LearningPerceptron extends Perceptron {
 
         for (int i = 0; i < getInputLength(); i++) {
             double delta = learning * inputs[i] * error;
-            weights[i] += delta;
+            updateWeight(i, delta);
         }
+    }
+
+    public void updateWeight(int index, double delta) {
+        weights[index] += delta;
     }
 
     @Override
@@ -42,5 +46,13 @@ public class LearningPerceptron extends Perceptron {
     @Override
     public Perceptron clone() {
         return new LearningPerceptron(getInputLength(), learning, getActivation());
+    }
+
+    public double[] getWeights() {
+        return weights;
+    }
+
+    public double getLearningRate() {
+        return learning;
     }
 }

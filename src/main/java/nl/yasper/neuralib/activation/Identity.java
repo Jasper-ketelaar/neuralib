@@ -4,7 +4,7 @@ public class Identity implements ActivationFunction {
 
     @Override
     public double activate(double output) {
-        return 0;
+        return output;
     }
 
     @Override

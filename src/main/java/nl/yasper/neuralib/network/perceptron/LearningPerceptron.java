@@ -1,6 +1,6 @@
 package nl.yasper.neuralib.network.perceptron;
 
-import nl.yasper.neuralib.activation.ActivationFunction;
+import nl.yasper.neuralib.network.activation.ActivationFunction;
 import nl.yasper.neuralib.math.ArrayMath;
 
 import java.util.Random;

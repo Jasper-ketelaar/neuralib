@@ -1,8 +1,7 @@
 package nl.yasper.neuralib.network.builder;
 
-import nl.yasper.neuralib.activation.ActivationFunction;
+import nl.yasper.neuralib.network.activation.ActivationFunction;
 import nl.yasper.neuralib.network.perceptron.LearningPerceptron;
-import nl.yasper.neuralib.network.perceptron.Perceptron;
 import nl.yasper.neuralib.network.layer.PerceptronLayer;
 
 public class LayerBuilder {

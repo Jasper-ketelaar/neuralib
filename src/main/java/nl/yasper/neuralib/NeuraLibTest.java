@@ -1,7 +1,7 @@
 package nl.yasper.neuralib;
 
-import nl.yasper.neuralib.activation.ActivationFunction;
-import nl.yasper.neuralib.activation.Threshold;
+import nl.yasper.neuralib.network.activation.ActivationFunction;
+import nl.yasper.neuralib.network.activation.Threshold;
 import nl.yasper.neuralib.network.NeuralNetwork;
 import nl.yasper.neuralib.network.builder.LayerBuilder;
 import nl.yasper.neuralib.network.layer.InputLayer;

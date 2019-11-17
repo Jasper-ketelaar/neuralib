@@ -1,4 +1,4 @@
-package nl.yasper.neuralib.activation;
+package nl.yasper.neuralib.network.activation;
 
 public interface ActivationFunction {
 

@@ -66,15 +66,20 @@ public class NeuralNetwork {
              */
             for (int index = 0; index < current.getSize(); index++) {
                 LearningPerceptron lp = (LearningPerceptron) current.getPerceptron(index);
-
                 // Derivative of sigmoid(E x_iw_j) is actually just result of perceptron instead of sigmoid
-                double derivative = result[layerIndex][index] * (1 - result[layerIndex][index]);
+                double weightedSum = 0;
+                for (int weightIndex = 0; weightIndex < lp.getInputLength(); weightIndex++) {
+                    weightedSum += lp.getWeights()[weightIndex] * result[layerIndex - 1][weightIndex];
+                }
+
+                double derivative = lp.getActivation().derive(weightedSum);
+
                 for (int weightIndex = 0; weightIndex < lp.getInputLength(); weightIndex++) {
                     double diff = errors[index] * derivative * result[layerIndex - 1][weightIndex];
                     lp.updateWeight(weightIndex, diff);
                 }
 
-                lp.updateBias(errors[index] * derivative);
+                //lp.updateBias(errors[index] * derivative);
             }
 
             current = getPrevious(current);

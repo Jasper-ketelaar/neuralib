@@ -19,6 +19,6 @@ public class Threshold implements ActivationFunction {
 
     @Override
     public double derive(double output) {
-        return 0;
+        return output;
     }
 }

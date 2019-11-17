@@ -21,10 +21,10 @@ public class LearningPerceptron extends Perceptron {
     private void initializeWeights() {
         Random random = new Random();
         for (int i = 0; i < weights.length; i++) {
-            this.weights[i] = random.nextGaussian();
+            this.weights[i] = random.nextDouble();
         }
 
-        this.bias = random.nextGaussian();
+        this.bias = random.nextDouble();
     }
 
     public void updateBias(double delta) {
@@ -42,12 +42,13 @@ public class LearningPerceptron extends Perceptron {
     }
 
     public void updateWeight(int index, double delta) {
+        //System.out.printf("Weight %d changed by %.2f\n", index, delta * learning);
         weights[index] += learning * delta;
     }
 
     @Override
     public double getWeightedProduct(double[] inputs) {
-        return ArrayMath.dotProduct(inputs, weights) + bias;
+        return ArrayMath.dotProduct(inputs, weights) ;
     }
 
     @Override

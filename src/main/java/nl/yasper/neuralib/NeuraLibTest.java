@@ -3,14 +3,11 @@ package nl.yasper.neuralib;
 import nl.yasper.neuralib.display.NetworkFrame;
 import nl.yasper.neuralib.network.NeuralNetwork;
 import nl.yasper.neuralib.network.activation.ActivationFunction;
-import nl.yasper.neuralib.network.activation.Sigmoid;
-import nl.yasper.neuralib.network.activation.Threshold;
 import nl.yasper.neuralib.network.builder.LayerBuilder;
 import nl.yasper.neuralib.network.layer.InputLayer;
 import nl.yasper.neuralib.network.layer.PerceptronLayer;
 import nl.yasper.neuralib.network.perceptron.LearningPerceptron;
 
-import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
@@ -30,26 +27,11 @@ public class NeuraLibTest {
                 .withPerceptrons(2, 2)
                 .build();
 
-        LearningPerceptron firstHidden = hidden.getPerceptron(0);
-        firstHidden.setWeight(0, 0.5);
-        firstHidden.setWeight(1, 0.4);
-        firstHidden.setBias(.8);
-
-        LearningPerceptron secondHidden = hidden.getPerceptron(1);
-        secondHidden.setWeight(0, 0.9);
-        secondHidden.setWeight(1, 1.0);
-        secondHidden.setBias(-.1);
-
         PerceptronLayer<LearningPerceptron> output = new LayerBuilder(1)
                 .withActivationFunction(ActivationFunction.SIGMOID)
                 .withLearningRate(.1)
                 .withPerceptrons(2, 1)
                 .build();
-
-        LearningPerceptron outputPerceptron = output.getPerceptron(0);
-        outputPerceptron.setWeight(0, -1.2);
-        outputPerceptron.setWeight(1, 1.1);
-        outputPerceptron.setBias(0.3);
 
         NeuralNetwork neuralNetwork = new NeuralNetwork(inputLayer, new PerceptronLayer[]{hidden}, output);
 
@@ -71,24 +53,25 @@ public class NeuraLibTest {
                 sse = 0.0;
                 int start = random.nextInt(4);
                 for (int i = 0; i < inputs.length; i++) {
-
-                    sse += neuralNetwork.train(inputs[(start + i) % 4], outputs[(start + i) % 4]);
+                    double err = neuralNetwork.train(inputs[(start + i) % 4], outputs[(start + i) % 4]);
+                    sse += err;
                 }
 
-                System.out.printf("Epoch %d: SSE=%.6f\n\n", epoch++, sse);
+                if ((epoch % 100) == 0) {
+                    System.out.printf("Epoch %d: SSE=%.6f\n", epoch, sse);
+                }
+
+                epoch += 1;
             }
         }).start();
-
-        /*for (int epoch = 0; epoch < 20000; epoch++) {
-            for (int i = 0; i < inputs.length; i++) {
-                neuralNetwork.train(inputs[i], outputs[i]);
-            }
-        }*/
 
         waited.getPanel().setMousePressCallback(() -> {
             cancel.set(true);
             System.out.println();
-            neuralNetwork.train(inputs[0], outputs[0]);
+            System.out.println(Arrays.toString(neuralNetwork.predict(inputs[0])));
+            System.out.println(Arrays.toString(neuralNetwork.predict(inputs[1])));
+            System.out.println(Arrays.toString(neuralNetwork.predict(inputs[2])));
+            System.out.println(Arrays.toString(neuralNetwork.predict(inputs[3])));
         });
     }
 

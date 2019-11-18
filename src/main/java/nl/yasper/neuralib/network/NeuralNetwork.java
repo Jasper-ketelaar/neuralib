@@ -1,5 +1,6 @@
 package nl.yasper.neuralib.network;
 
+import nl.yasper.neuralib.network.activation.ActivationFunction;
 import nl.yasper.neuralib.network.layer.InputLayer;
 import nl.yasper.neuralib.network.layer.PerceptronLayer;
 import nl.yasper.neuralib.network.perceptron.LearningPerceptron;
@@ -32,16 +33,22 @@ public class NeuralNetwork {
     }
 
     public void trainUntil(double[][] inputs, double[][] outputs, double error) {
-        double realError = 1;
-        while (realError > error) {
-            double currError = 0;
+        double sse = Double.MAX_VALUE;
+        int epoch = 0;
+        while (sse > error) {
+            sse = 0;
+
             for (int i = 0; i < inputs.length; i++) {
                 double[] inputSes = inputs[i];
                 double[] outputSes = outputs[i];
-                currError = Math.max(currError, train(inputSes, outputSes));
-                System.out.printf("Error of %.2f on %s input, expected %s output \n", currError, Arrays.toString(inputSes), Arrays.toString(outputSes));
+                sse += train(inputSes, outputSes);
             }
-            realError = currError;
+
+            if ((epoch % 10000) == 0) {
+                System.out.printf("Epoch %d: SSE=%.6f\n", epoch, sse);
+            }
+
+            epoch++;
         }
     }
 
@@ -156,6 +163,24 @@ public class NeuralNetwork {
         }
 
         return input;
+    }
+
+    public double[] activationPredict(double[] inputs, ActivationFunction av) {
+        double[] results = computeEpochMatrix(inputs)[hidden.size() + 1];
+        for (int i = 0; i < results.length; i++) {
+            results[i] = av.activate(results[i]);
+        }
+
+        return results;
+    }
+
+    public double[] binaryPredict(double[] inputs) {
+        double[] results = computeEpochMatrix(inputs)[hidden.size() + 1];
+        for (int i = 0; i < results.length; i++) {
+            results[i] = Math.round(results[i]);
+        }
+
+        return results;
     }
 
     public double[] predict(double[] inputs) {

@@ -1,6 +1,7 @@
 package nl.yasper.neuralib.display.displayable;
 
 import nl.yasper.neuralib.network.perceptron.InputPerceptron;
+import nl.yasper.neuralib.network.perceptron.LearningPerceptron;
 import nl.yasper.neuralib.network.perceptron.Perceptron;
 
 import java.awt.*;
@@ -35,12 +36,18 @@ public class PerceptronDisplayable implements Displayable {
         }
 
         Font font = graphics.getFont();
+        graphics.setFont(font.deriveFont(12f));
+        graphics.drawOval(0, 0, PERCEPTRON_SIZE, PERCEPTRON_SIZE);
+        if (perceptron instanceof LearningPerceptron) {
+            graphics.drawString(String.format("Bias: %.4f", ((LearningPerceptron) perceptron).getBias()), 0, -5);
+        }
+
         graphics.setFont(font.deriveFont(16f));
         FontMetrics fm = graphics.getFontMetrics();
         int textLength = fm.stringWidth(text);
         int textHeight = fm.getHeight();
 
-        graphics.drawOval(0, 0, PERCEPTRON_SIZE, PERCEPTRON_SIZE);
+
 
         graphics.drawString(
                 text,

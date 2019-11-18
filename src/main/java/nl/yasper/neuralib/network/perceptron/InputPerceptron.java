@@ -14,7 +14,7 @@ public class InputPerceptron extends Perceptron {
     }
 
     @Override
-    public Perceptron clone() {
+    public InputPerceptron createNew() {
         return new InputPerceptron();
     }
 }

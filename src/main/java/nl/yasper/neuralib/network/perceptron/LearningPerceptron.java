@@ -18,17 +18,26 @@ public class LearningPerceptron extends Perceptron {
         initializeWeights();
     }
 
+    public double getBias() {
+        return bias;
+    }
+
     private void initializeWeights() {
         Random random = new Random();
+        double range = 2.4 / (double) weights.length;
         for (int i = 0; i < weights.length; i++) {
-            this.weights[i] = random.nextDouble();
+            this.weights[i] = 2 * random.nextDouble() * range - range;
         }
 
-        this.bias = random.nextDouble();
+        this.bias = 2 * random.nextDouble() * range - range;;
     }
 
     public void updateBias(double delta) {
-        bias += learning * delta;
+        bias -= learning * delta;
+    }
+
+    public void setBias(double bias) {
+        this.bias = bias;
     }
 
     public void train(double[] inputs, double output) {
@@ -42,17 +51,20 @@ public class LearningPerceptron extends Perceptron {
     }
 
     public void updateWeight(int index, double delta) {
-        //System.out.printf("Weight %d changed by %.2f\n", index, delta * learning);
         weights[index] += learning * delta;
+    }
+
+    public void setWeight(int index, double weight) {
+        weights[index] = weight;
     }
 
     @Override
     public double getWeightedProduct(double[] inputs) {
-        return ArrayMath.dotProduct(inputs, weights) ;
+        return ArrayMath.dotProduct(inputs, weights) - bias;
     }
 
     @Override
-    public Perceptron clone() {
+    public LearningPerceptron createNew() {
         return new LearningPerceptron(getInputLength(), learning, getActivation());
     }
 

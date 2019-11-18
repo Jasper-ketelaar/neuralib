@@ -5,20 +5,11 @@ import nl.yasper.neuralib.network.perceptron.Perceptron;
 
 import java.security.InvalidParameterException;
 
-public class InputLayer extends PerceptronLayer {
+public class InputLayer extends PerceptronLayer<InputPerceptron> {
 
     public InputLayer(int size) {
         super(size);
         addPerceptron(new InputPerceptron(), size);
-    }
-
-    @Override
-    public void addPerceptron(Perceptron perceptron, int amount) {
-        if (perceptron instanceof InputPerceptron) {
-            super.addPerceptron(perceptron, amount);
-        } else {
-            throw new InvalidParameterException("An input layer can only contain input perceptrons");
-        }
     }
 
     @Override

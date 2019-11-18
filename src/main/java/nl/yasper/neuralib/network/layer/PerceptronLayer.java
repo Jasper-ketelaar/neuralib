@@ -6,7 +6,7 @@ import nl.yasper.neuralib.network.perceptron.Perceptron;
 import java.security.InvalidParameterException;
 import java.util.*;
 
-public class PerceptronLayer implements Iterable<Perceptron> {
+public class PerceptronLayer<T extends Perceptron> implements Iterable<Perceptron> {
 
     private final List<Perceptron> perceptrons;
     private final int size;
@@ -16,22 +16,22 @@ public class PerceptronLayer implements Iterable<Perceptron> {
         this.size = size;
     }
 
-    public void addPerceptron(Perceptron perceptron) {
+    public void addPerceptron(T perceptron) {
         addPerceptron(perceptron, 1);
     }
 
-    public void addPerceptron(Perceptron perceptron, int amount) {
+    public void addPerceptron(T perceptron, int amount) {
         if (size < amount + perceptrons.size()) {
             throw new InvalidParameterException();
         }
 
         for (int i = 0; i < amount; i++) {
-            perceptrons.add(perceptron.clone());
+            perceptrons.add(perceptron.createNew());
         }
     }
 
-    public Perceptron getPerceptron(int index) {
-        return perceptrons.get(index);
+    public T getPerceptron(int index) {
+        return (T) perceptrons.get(index);
     }
 
     public double[] predict(double[] input) {

@@ -49,7 +49,7 @@ public class NeuralNetwork {
         double[][] result = computeEpochMatrix(inputs);
         double[] predictions = result[hidden.size() + 1];
 
-        Map<PerceptronLayer, double[]> errorMap = backPropogatedError(predictions, outputs);
+        Map<PerceptronLayer, double[]> errorMap = backPropogatedErrorGradient(predictions, outputs, result);
         PerceptronLayer current = output;
         int layerIndex = hidden.size() + 1;
         /*
@@ -67,44 +67,42 @@ public class NeuralNetwork {
             for (int index = 0; index < current.getSize(); index++) {
                 LearningPerceptron lp = (LearningPerceptron) current.getPerceptron(index);
                 // Derivative of sigmoid(E x_iw_j) is actually just result of perceptron instead of sigmoid
-                double weightedSum = 0;
-                for (int weightIndex = 0; weightIndex < lp.getInputLength(); weightIndex++) {
-                    weightedSum += lp.getWeights()[weightIndex] * result[layerIndex - 1][weightIndex];
-                }
-
-                double derivative = lp.getActivation().derive(weightedSum);
 
                 for (int weightIndex = 0; weightIndex < lp.getInputLength(); weightIndex++) {
-                    double diff = errors[index] * derivative * result[layerIndex - 1][weightIndex];
+                    double diff = errors[index] * result[layerIndex - 1][weightIndex];
                     lp.updateWeight(weightIndex, diff);
                 }
 
-                //lp.updateBias(errors[index] * derivative);
+                lp.updateBias(errors[index]);
             }
 
             current = getPrevious(current);
             layerIndex--;
         }
 
-        // Return the Mean Squared Error as a result when training
+        // Return the Sum Squared Error as a result when training
+        predictions = computeEpochMatrix(inputs)[hidden.size() + 1];
         double sError = 0;
-        for (double error : errorMap.get(output)) {
-            sError += Math.pow(error, 2);
+        for (int i = 0; i < outputs.length; i++) {
+            sError += Math.pow((outputs[i] - predictions[i]), 2);
         }
 
-        return sError / outputs.length;
+        return sError;
     }
 
-    private Map<PerceptronLayer, double[]> backPropogatedError(double[] predictions, double[] expected) {
+    private Map<PerceptronLayer, double[]> backPropogatedErrorGradient(double[] predictions, double[] expected, double[][] matrix) {
         // Create a map that stores all the errors for each layer
-        Map<PerceptronLayer, double[]> errorMap = new HashMap<>();
+        Map<PerceptronLayer, double[]> gradientMap = new HashMap<>();
 
-        // First compute the output errors given the predictions
-        double[] outputErrors = new double[predictions.length];
+        double[] outputGradients = new double[predictions.length];
         for (int i = 0; i < predictions.length; i++) {
-            outputErrors[i] = expected[i] - predictions[i];
+            double err_i = expected[i] - predictions[i];
+            LearningPerceptron perceptron = (LearningPerceptron) output.getPerceptron(i);
+            double weightedProductI = perceptron.getWeightedProduct(matrix[hidden.size()]);
+            outputGradients[i] = err_i * output.getPerceptron(i).getActivation().derive(weightedProductI);
         }
-        errorMap.put(output, outputErrors);
+
+        gradientMap.put(output, outputGradients);
 
 
         PerceptronLayer previousLayer = output;
@@ -113,29 +111,31 @@ public class NeuralNetwork {
             PerceptronLayer currentLayer = hidden.get(i);
 
             // Get the error values for the previous layer
-            double[] prevLayerErrors = errorMap.get(previousLayer);
-            double[] layerErrors = new double[currentLayer.getSize()];
+            double[] prevLayerGradients = gradientMap.get(previousLayer);
+            double[] layerGradients = new double[currentLayer.getSize()];
 
             // Loop over the perceptrons in the current layer
             for (int index = 0; index < currentLayer.getSize(); index++) {
-
+                LearningPerceptron current = (LearningPerceptron) currentLayer.getPerceptron(index);
+                double weightedProductI = current.getWeightedProduct(matrix[i]);
+                double derivative = currentLayer.getPerceptron(index).getActivation().derive(weightedProductI);
                 // Loop over the previous layer's error values
-                for (int x = 0; x < prevLayerErrors.length; x++) {
+                for (int x = 0; x < prevLayerGradients.length; x++) {
 
                     // Get the perceptron in the previous layer this current perceptron is connected to
-                    LearningPerceptron currPrevPerceptron = (LearningPerceptron) previousLayer.getPerceptron(x);
+                    LearningPerceptron prevPerceptron = (LearningPerceptron) previousLayer.getPerceptron(x);
 
                     // Add the previous error for that perceptron multiplied by the weight between this and that perceptron
-                    layerErrors[index] += prevLayerErrors[x] * currPrevPerceptron.getWeights()[index];
+                    layerGradients[index] += prevLayerGradients[x] * derivative * prevPerceptron.getWeights()[index];
                 }
             }
 
             // Put the errors in the map and move a layer backwards
-            errorMap.put(currentLayer, layerErrors);
+            gradientMap.put(currentLayer, layerGradients);
             previousLayer = currentLayer;
         }
 
-        return errorMap;
+        return gradientMap;
     }
 
 
@@ -162,9 +162,11 @@ public class NeuralNetwork {
         return computeEpochMatrix(inputs)[hidden.size() + 1];
     }
 
+    // TESTED
     private double[][] computeEpochMatrix(double[] inputs) {
         double[][] result = new double[2 + hidden.size()][];
         result[0] = input.predict(inputs);
+
         for (int i = 0; i < hidden.size(); i++) {
             result[i + 1] = hidden.get(i).predict(result[i]);
         }

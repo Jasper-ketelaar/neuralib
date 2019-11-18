@@ -34,7 +34,7 @@ public abstract class Perceptron {
 
     public abstract double getWeightedProduct(double[] inputs);
 
-    public abstract Perceptron clone();
+    public abstract Perceptron createNew();
 
     public ActivationFunction getActivation() {
         return activation;

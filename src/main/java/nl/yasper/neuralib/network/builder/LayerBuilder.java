@@ -1,13 +1,15 @@
 package nl.yasper.neuralib.network.builder;
 
 import nl.yasper.neuralib.network.activation.ActivationFunction;
+import nl.yasper.neuralib.network.activation.SoftMax;
+import nl.yasper.neuralib.network.layer.SoftMaxOutputLayer;
 import nl.yasper.neuralib.network.perceptron.LearningPerceptron;
 import nl.yasper.neuralib.network.layer.PerceptronLayer;
 import nl.yasper.neuralib.network.perceptron.Perceptron;
 
 public class LayerBuilder {
 
-    private final PerceptronLayer<LearningPerceptron> layer;
+    private PerceptronLayer<LearningPerceptron> layer;
 
     private ActivationFunction activation = ActivationFunction.IDENTITY;
     private double learning = 0.2;
@@ -17,6 +19,10 @@ public class LayerBuilder {
     }
 
     public LayerBuilder withActivationFunction(ActivationFunction activation) {
+        if (activation instanceof SoftMax) {
+            this.layer = new SoftMaxOutputLayer(layer.getSize());
+        }
+
         this.activation = activation;
         return this;
     }

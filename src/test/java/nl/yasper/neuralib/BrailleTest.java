@@ -17,7 +17,7 @@ public class BrailleTest {
                 .withLearningRate(.2)
                 .withInputLayer(6)
                 .addHiddenLayer(5, ActivationFunction.SIGMOID)
-                .withOutputLayer(30, ActivationFunction.SIGMOID)
+                .withOutputLayer(30, ActivationFunction.SOFTMAX)
                 .build();
 
         double[][] inputs = {
@@ -59,7 +59,7 @@ public class BrailleTest {
             outputs[i] = out(i);
         }
 
-        neuralNetwork.trainUntil(inputs, outputs, .1, 1, 100);
+        neuralNetwork.trainUntil(inputs, outputs, 1, 1, .1, 10);
         for (int i = 0; i < outputs.length; i++) {
             Assert.assertEquals(neuralNetwork.binaryPredict(inputs[i]), outputs[i]);
         }

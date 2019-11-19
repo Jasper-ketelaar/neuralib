@@ -1,5 +1,6 @@
 package nl.yasper.neuralib.network;
 
+import nl.yasper.neuralib.math.ArrayMath;
 import nl.yasper.neuralib.network.activation.ActivationFunction;
 import nl.yasper.neuralib.network.layer.InputLayer;
 import nl.yasper.neuralib.network.layer.PerceptronLayer;
@@ -8,6 +9,7 @@ import nl.yasper.neuralib.network.perceptron.LearningPerceptron;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.BiFunction;
 
 public class NeuralNetwork {
 
@@ -49,45 +51,52 @@ public class NeuralNetwork {
         this(input, new ArrayList<>(), output);
     }
 
-    public void trainUntil(double[][] inputs, double[][] outputs, double error, int batchSize, int printEpochs) {
+    public void trainUntil(double[][] inputs, double[][] outputs, int batchSize, int threads, BiFunction<Double, Integer, Boolean> validate, int printEpochs) {
         double sse = Double.MAX_VALUE;
         int epoch = 0;
         long time = System.currentTimeMillis();
-        while (sse > error) {
+        while (!validate.apply(sse, epoch)) {
             sse = 0;
 
-            for (int i = 0; i < inputs.length; i+= batchSize) {
+            for (int i = 0; i < inputs.length; i += batchSize) {
                 if (batchSize == 1) {
                     double[] inputSes = inputs[i];
                     double[] outputSes = outputs[i];
                     sse += train(inputSes, outputSes);
                 } else {
                     int len = Math.min(batchSize, inputs.length - i);
-                    sse += batchTrain(inputs, outputs, i, len);
+                    sse += batchTrain(inputs, outputs, i, len, threads);
                 }
-                System.out.println(i);
             }
 
             if ((epoch % printEpochs) == 0) {
-                System.out.printf("Epoch %d: SSE=%.6f, time=%d ms\n", epoch, sse, (System.currentTimeMillis() - time));
+                System.out.printf("Epoch %d: SSE=%.2f, MSE=%.2f, time=%d ms\n", epoch, sse, sse / inputs.length, (System.currentTimeMillis() - time));
                 time = System.currentTimeMillis();
             }
+
 
             epoch++;
         }
     }
 
+    public void trainUntil(double[][] inputs, double[][] outputs, int batchSize, int threads, double error, int printEpochs) {
+       trainUntil(inputs, outputs, batchSize, threads, (err, epoch) -> err < error, printEpochs);
+    }
+
+    public void trainUntil(double[][] inputs, double[][] outputs, int batchSize, int threads, double error) {
+        trainUntil(inputs, outputs, batchSize, threads, error, 10000);
+    }
+
     public void trainUntil(double[][] inputs, double[][] outputs, int batchSize, double error) {
-        trainUntil(inputs, outputs, error, batchSize, 10000);
+        trainUntil(inputs, outputs, batchSize, batchSize, error);
     }
 
     public void trainUntil(double[][] inputs, double[][] outputs, double error) {
-        trainUntil(inputs, outputs, error, 1, 10000);
+        trainUntil(inputs, outputs, 1, 1, error);
     }
 
-
-    public double batchTrain(double[][] input, double[][] output, int startIndex, int length) {
-        Executor executor = Executors.newScheduledThreadPool(length);
+    public double batchTrain(double[][] input, double[][] output, int startIndex, int length, int threads) {
+        Executor executor = Executors.newFixedThreadPool(threads);
         CompletionService<IterationResult> completionService =
                 new ExecutorCompletionService<>(executor);
         for (int batch = 0; batch < length; batch++) {
@@ -97,22 +106,30 @@ public class NeuralNetwork {
 
         int received = 0;
         boolean errors = false;
-        double sse = 0;
+        IterationResult summedResult = null;
         while (received < length && !errors) {
             try {
                 Future<IterationResult> resultFuture = completionService.take();
                 IterationResult result = resultFuture.get();
-                applyUpdates(result.getUpdates());
-                sse += result.getSSE();
-                received++;
+                if (summedResult == null) {
+                    summedResult = result;
+                } else {
+                    summedResult = summedResult.add(result);
+                }
 
+                received++;
             } catch (Exception e) {
                 e.printStackTrace();
                 errors = true;
             }
         }
 
-        return sse;
+        if (summedResult != null) {
+            applyUpdates(summedResult.getUpdates());
+            return summedResult.getSSE();
+        }
+
+        return Double.MAX_VALUE;
     }
 
     public double train(double[] inputs, double[] outputs) {
@@ -259,6 +276,11 @@ public class NeuralNetwork {
         }
 
         return input;
+    }
+
+    public int indexPredict(double[] inputs) {
+        double[] results = computeEpochMatrix(inputs)[hidden.size() + 1];
+        return ArrayMath.getMaxIndex(results);
     }
 
     public double[] activationPredict(double[] inputs, ActivationFunction av) {

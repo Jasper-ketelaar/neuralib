@@ -42,13 +42,13 @@ public class NeuralNetwork {
         this.input = copy.input.clone();
         this.output = copy.output.clone();
         this.hidden = new ArrayList<>();
-        for (PerceptronLayer p : copy.hidden) {
+        for (PerceptronLayer<LearningPerceptron> p : copy.hidden) {
             hidden.add(p.clone());
         }
     }
 
-    public NeuralNetwork(PerceptronLayer input, PerceptronLayer output) {
-        this(input, new PerceptronLayer[0], output);
+    public NeuralNetwork(PerceptronLayer<InputPerceptron> input, PerceptronLayer<LearningPerceptron> output) {
+        this(input, new ArrayList<>(), output);
     }
 
     public void trainUntil(double[][] inputs, double[][] outputs, double error, int printEpochs) {
@@ -75,18 +75,6 @@ public class NeuralNetwork {
         trainUntil(inputs, outputs, error, 10000);
     }
 
-    public void trainUntilParallel(double[][] inputs, double[][] outputs, double error, int printEpochs, int threadPool) {
-        double sse = Double.MAX_VALUE;
-        int epoch = 0;
-        while (sse > error) {
-            sse = trainParallel(inputs, outputs, threadPool);
-            if ((epoch % printEpochs) == 0) {
-                System.out.printf("Epoch %d: SSE=%.6f\n", epoch, sse);
-            }
-
-            epoch++;
-        }
-    }
 
     public double batchTrain(double[][] inputs, double[][] outputs) {
         Map<PerceptronLayer, double[]> errorMap = new HashMap<>();
@@ -106,104 +94,7 @@ public class NeuralNetwork {
 
         return 0;
     }
-
-    public double trainParallel(double[][] inputs, double[][] outputs, int threadPool) {
-        Executor executor = Executors.newFixedThreadPool(threadPool);
-        CompletionService<Double> completionService =
-                new ExecutorCompletionService<>(executor);
-
-        NeuralNetwork[] networks = new NeuralNetwork[threadPool];
-        for (int i = 0; i < networks.length; i++) {
-            networks[i] = new NeuralNetwork(this);
-        }
-
-        AtomicReference<Double> sse = new AtomicReference<>();
-        for (int index = 0; index < inputs.length; index += threadPool) {
-            for (int i = 0; i < threadPool; i++) {
-                int batch = i;
-                int dataIndex = index + batch;
-                if (dataIndex >= inputs.length) {
-                    break;
-                }
-
-
-                completionService.submit(() -> networks[batch].train(inputs[dataIndex], outputs[dataIndex]));
-            }
-
-            int received = 0;
-            boolean errors = false;
-            while (received < threadPool && !errors) {
-                try {
-                    Future<Double> resultFuture = completionService.take();
-                    Double result = resultFuture.get();
-                    if (sse.get() == null) {
-                        sse.set(result);
-                    } else {
-                        sse.set(result + sse.get());
-                    }
-
-                    received++;
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    errors = true;
-                }
-            }
-
-            averageWeightsAndBiases(networks);
-        }
-
-        return sse.get();
-    }
-
-    private void averageWeightsAndBiases(NeuralNetwork[] networks) {
-        double[][][] weightMatrix = new double[networks[0].hidden.size() + 1][][];
-        double[][] biasMatrix = new double[networks[0].hidden.size() + 1][];
-
-        for (NeuralNetwork network : networks) {
-            for (int layer = 0; layer <= network.hidden.size(); layer++) {
-                PerceptronLayer<LearningPerceptron> lpLayer;
-                if (layer < network.hidden.size()) {
-                    lpLayer = network.hidden.get(layer);
-                } else {
-                    lpLayer = output;
-                }
-
-                weightMatrix[layer] = new double[lpLayer.getSize()][];
-                biasMatrix[layer] = new double[lpLayer.getSize()];
-                for (int perceptronIndex = 0; perceptronIndex < lpLayer.getSize(); perceptronIndex++) {
-                    LearningPerceptron cast = lpLayer.getPerceptron(perceptronIndex);
-                    biasMatrix[layer][perceptronIndex] = cast.getBias() / (double) networks.length;
-                    weightMatrix[layer][perceptronIndex] = new double[cast.getWeights().length];
-                    for (int weightIndex = 0; weightIndex < cast.getWeights().length; weightIndex++) {
-                        weightMatrix[layer][perceptronIndex][weightIndex] += cast.getWeights()[weightIndex] / (double) networks.length;
-                    }
-                }
-            }
-        }
-
-        for (NeuralNetwork network : networks) {
-            for (int layer = 0; layer <= network.hidden.size(); layer++) {
-                PerceptronLayer<LearningPerceptron> lpLayer;
-                if (layer < network.hidden.size()) {
-                    lpLayer = network.hidden.get(layer);
-                } else {
-                    lpLayer = output;
-                }
-
-                weightMatrix[layer] = new double[lpLayer.getSize()][];
-                for (int perceptronIndex = 0; perceptronIndex < lpLayer.getSize(); perceptronIndex++) {
-                    LearningPerceptron cast = lpLayer.getPerceptron(perceptronIndex);
-                    cast.setBias(biasMatrix[layer][perceptronIndex]);
-
-                    weightMatrix[layer][perceptronIndex] = new double[cast.getWeights().length];
-                    for (int weightIndex = 0; weightIndex < cast.getWeights().length; weightIndex++) {
-                        cast.setWeight(weightIndex, weightMatrix[layer][perceptronIndex][weightIndex]);
-                    }
-                }
-            }
-        }
-    }
-
+    
     public double train(double[] inputs, double[] outputs) {
         double[][] result = computeEpochMatrix(inputs);
         double[] predictions = result[hidden.size() + 1];

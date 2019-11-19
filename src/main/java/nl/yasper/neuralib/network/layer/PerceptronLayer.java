@@ -4,7 +4,9 @@ import nl.yasper.neuralib.network.perceptron.LearningPerceptron;
 import nl.yasper.neuralib.network.perceptron.Perceptron;
 
 import java.security.InvalidParameterException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 public class PerceptronLayer<T extends Perceptron> implements Iterable<Perceptron> {
 
@@ -47,8 +49,33 @@ public class PerceptronLayer<T extends Perceptron> implements Iterable<Perceptro
         return size;
     }
 
+    public int getPerceptronSize() {
+        return perceptrons.size();
+    }
+
     @Override
     public Iterator<Perceptron> iterator() {
         return perceptrons.iterator();
+    }
+
+    @Override
+    public PerceptronLayer<T> clone() {
+        PerceptronLayer<T> cloned = new PerceptronLayer<>(this.size);
+        this.perceptrons.forEach((p) -> {
+            Perceptron created = p.createNew();
+            if (created instanceof LearningPerceptron) {
+                LearningPerceptron createdLearning = (LearningPerceptron) created;
+                LearningPerceptron orig = (LearningPerceptron) p;
+                for (int i = 0; i < orig.getWeights().length; i++) {
+                    createdLearning.setWeight(i, orig.getWeights()[i]);
+                }
+
+                createdLearning.setBias(orig.getBias());
+            }
+
+            cloned.addPerceptron((T) created);
+        });
+
+        return cloned;
     }
 }

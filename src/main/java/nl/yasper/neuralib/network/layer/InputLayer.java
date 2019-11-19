@@ -22,4 +22,8 @@ public class InputLayer extends PerceptronLayer<InputPerceptron> {
         return result;
     }
 
+    @Override
+    public PerceptronLayer<InputPerceptron> clone() {
+        return new InputLayer(getSize());
+    }
 }

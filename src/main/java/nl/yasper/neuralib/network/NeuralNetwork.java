@@ -1,6 +1,5 @@
 package nl.yasper.neuralib.network;
 
-import nl.yasper.neuralib.math.ArrayMath;
 import nl.yasper.neuralib.network.activation.ActivationFunction;
 import nl.yasper.neuralib.network.layer.InputLayer;
 import nl.yasper.neuralib.network.layer.PerceptronLayer;
@@ -9,7 +8,6 @@ import nl.yasper.neuralib.network.perceptron.LearningPerceptron;
 
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class NeuralNetwork {
 
@@ -51,57 +49,86 @@ public class NeuralNetwork {
         this(input, new ArrayList<>(), output);
     }
 
-    public void trainUntil(double[][] inputs, double[][] outputs, double error, int printEpochs) {
+    public void trainUntil(double[][] inputs, double[][] outputs, double error, int batchSize, int printEpochs) {
         double sse = Double.MAX_VALUE;
         int epoch = 0;
+        long time = System.currentTimeMillis();
         while (sse > error) {
             sse = 0;
 
-            for (int i = 0; i < inputs.length; i++) {
-                double[] inputSes = inputs[i];
-                double[] outputSes = outputs[i];
-                sse += train(inputSes, outputSes);
+            for (int i = 0; i < inputs.length; i+= batchSize) {
+                if (batchSize == 1) {
+                    double[] inputSes = inputs[i];
+                    double[] outputSes = outputs[i];
+                    sse += train(inputSes, outputSes);
+                } else {
+                    int len = Math.min(batchSize, inputs.length - i);
+                    sse += batchTrain(inputs, outputs, i, len);
+                }
+                System.out.println(i);
             }
 
             if ((epoch % printEpochs) == 0) {
-                System.out.printf("Epoch %d: SSE=%.6f\n", epoch, sse);
+                System.out.printf("Epoch %d: SSE=%.6f, time=%d ms\n", epoch, sse, (System.currentTimeMillis() - time));
+                time = System.currentTimeMillis();
             }
 
             epoch++;
         }
     }
 
+    public void trainUntil(double[][] inputs, double[][] outputs, int batchSize, double error) {
+        trainUntil(inputs, outputs, error, batchSize, 10000);
+    }
+
     public void trainUntil(double[][] inputs, double[][] outputs, double error) {
-        trainUntil(inputs, outputs, error, 10000);
+        trainUntil(inputs, outputs, error, 1, 10000);
     }
 
 
-    public double batchTrain(double[][] inputs, double[][] outputs) {
-        Map<PerceptronLayer, double[]> errorMap = new HashMap<>();
-        for (int i = 0; i < inputs.length; i++) {
-            double[][] result = computeEpochMatrix(inputs[i]);
-            double[] predictions = result[hidden.size() + 1];
-            Map<PerceptronLayer, double[]> currErrMap = backPropogatedErrorGradient(predictions, outputs[i], result);
-            for (PerceptronLayer entry : currErrMap.keySet()) {
-                if (!errorMap.containsKey(entry)) {
-                    errorMap.put(entry, currErrMap.get(entry));
-                } else {
-                    double[] accumulatedError = errorMap.get(entry);
-                    errorMap.put(entry, ArrayMath.add(accumulatedError, currErrMap.get(entry)));
-                }
+    public double batchTrain(double[][] input, double[][] output, int startIndex, int length) {
+        Executor executor = Executors.newScheduledThreadPool(length);
+        CompletionService<IterationResult> completionService =
+                new ExecutorCompletionService<>(executor);
+        for (int batch = 0; batch < length; batch++) {
+            int finalBatch = batch;
+            completionService.submit(() -> computeUpdates(input[startIndex + finalBatch], output[startIndex + finalBatch]));
+        }
+
+        int received = 0;
+        boolean errors = false;
+        double sse = 0;
+        while (received < length && !errors) {
+            try {
+                Future<IterationResult> resultFuture = completionService.take();
+                IterationResult result = resultFuture.get();
+                applyUpdates(result.getUpdates());
+                sse += result.getSSE();
+                received++;
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                errors = true;
             }
         }
 
-        return 0;
+        return sse;
     }
-    
+
     public double train(double[] inputs, double[] outputs) {
+        IterationResult is = computeUpdates(inputs, outputs);
+        this.applyUpdates(is.getUpdates());
+        return is.getSSE();
+    }
+
+    private IterationResult computeUpdates(double[] inputs, double[] outputs) {
+        double[][][] updates = new double[hidden.size() + 1][][];
         double[][] result = computeEpochMatrix(inputs);
         double[] predictions = result[hidden.size() + 1];
 
         Map<PerceptronLayer, double[]> errorMap = backPropogatedErrorGradient(predictions, outputs, result);
         PerceptronLayer current = output;
-        int layerIndex = hidden.size() + 1;
+        int layerIndex = hidden.size();
         /*
          * When training we want to update all weights going into every layer except the input layer,
          * so we loop until we encounter the input layer
@@ -110,28 +137,54 @@ public class NeuralNetwork {
         while (!(current instanceof InputLayer)) {
             //This current layer's error values as computed using the back propogated error
             double[] errors = errorMap.get(current);
+            updates[layerIndex] = new double[current.getSize()][];
+
             /*
              * For each perceptron in this layer (we can assume they are learning perceptrons as the input layer
              * is where we stop
              */
             for (int index = 0; index < current.getSize(); index++) {
                 LearningPerceptron lp = (LearningPerceptron) current.getPerceptron(index);
-                // Derivative of sigmoid(E x_iw_j) is actually just result of perceptron instead of sigmoid
+                updates[layerIndex][index] = new double[lp.getInputLength() + 1];
 
                 for (int weightIndex = 0; weightIndex < lp.getInputLength(); weightIndex++) {
-                    double diff = errors[index] * result[layerIndex - 1][weightIndex];
-                    lp.updateWeight(weightIndex, diff);
+                    double diff = errors[index] * result[layerIndex][weightIndex];
+                    updates[layerIndex][index][weightIndex] = diff;
                 }
 
-                lp.updateBias(errors[index]);
+                updates[layerIndex][index][lp.getInputLength()] = errors[index];
             }
 
             current = getPrevious(current);
             layerIndex--;
         }
 
-        // Return the Sum Squared Error as a result when training
-        predictions = computeEpochMatrix(inputs)[hidden.size() + 1];
+        double sse = getError(inputs, outputs);
+        return new IterationResult(updates, sse);
+    }
+
+    private void applyUpdates(double[][][] updates) {
+        for (int layer = 0; layer < updates.length; layer++) {
+            PerceptronLayer<LearningPerceptron> learningLayer;
+            if (layer == hidden.size()) {
+                learningLayer = output;
+            } else {
+                learningLayer = hidden.get(layer);
+            }
+
+            for (int perceptron = 0; perceptron < updates[layer].length; perceptron++) {
+                LearningPerceptron lp = learningLayer.getPerceptron(perceptron);
+                for (int weight = 0; weight < updates[layer][perceptron].length - 1; weight++) {
+                    lp.updateWeight(weight, updates[layer][perceptron][weight]);
+                }
+
+                lp.updateBias(updates[layer][perceptron][lp.getInputLength()]);
+            }
+        }
+    }
+
+    private double getError(double[] inputs, double[] outputs) {
+        double[] predictions = computeEpochMatrix(inputs)[hidden.size() + 1];
         double sError = 0;
         for (int i = 0; i < outputs.length; i++) {
             sError += Math.pow((outputs[i] - predictions[i]), 2);
@@ -140,7 +193,6 @@ public class NeuralNetwork {
         return sError;
     }
 
-
     private Map<PerceptronLayer, double[]> backPropogatedErrorGradient(double[] predictions, double[] expected, double[][] matrix) {
         // Create a map that stores all the errors for each layer
         Map<PerceptronLayer, double[]> gradientMap = new HashMap<>();
@@ -148,7 +200,7 @@ public class NeuralNetwork {
         double[] outputGradients = new double[predictions.length];
         for (int i = 0; i < predictions.length; i++) {
             double err_i = expected[i] - predictions[i];
-            LearningPerceptron perceptron = (LearningPerceptron) output.getPerceptron(i);
+            LearningPerceptron perceptron = output.getPerceptron(i);
             double weightedProductI = perceptron.getWeightedProduct(matrix[hidden.size()]);
             outputGradients[i] = err_i * output.getPerceptron(i).getActivation().derive(weightedProductI);
         }
